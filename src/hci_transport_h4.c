@@ -143,6 +143,8 @@ static uint16_t  ehcill_tx_len;   // 0 == no outgoing packet
 
 static void (*hci_transport_h4_packet_handler)(uint8_t packet_type, uint8_t *packet, uint16_t size) = dummy_handler;
 
+static void (*hci_transport_h4_resync_callback)(void) = NULL;
+
 // packet reader state machine
 static  H4_STATE h4_state;
 static uint16_t bytes_to_read;
@@ -186,6 +188,13 @@ static void hci_transport_h4_reset_statemachine(void){
     h4_state = H4_W4_PACKET_TYPE;
     read_pos = 0;
     bytes_to_read = 1;
+}
+
+static void hci_transport_h4_resync(void){
+    if (hci_transport_h4_resync_callback != NULL){
+        hci_transport_h4_resync_callback();
+    }
+    hci_transport_h4_reset_statemachine();
 }
 
 static void hci_transport_h4_trigger_next_read(void){
@@ -270,7 +279,7 @@ static void hci_transport_h4_block_read(void){
 #endif
                 default:
                     log_error("hci_transport_h4: invalid packet type 0x%02x", hci_packet[0]);
-                    hci_transport_h4_reset_statemachine();
+                    hci_transport_h4_resync();
                     break;
             }
             break;
@@ -321,6 +330,11 @@ static void hci_transport_h4_block_read(void){
 
         case H4_W4_PAYLOAD:
             hci_transport_h4_packet_complete();
+            break;
+
+        case H4_W4_CMD_HEADER:
+            log_error("hci_transport_h4: unexpected HCI command on host RX - resynchronizing");
+            hci_transport_h4_resync();
             break;
 
         case H4_OFF:
@@ -484,6 +498,10 @@ static int hci_transport_h4_close(void){
 
 static void hci_transport_h4_register_packet_handler(void (*handler)(uint8_t packet_type, uint8_t *packet, uint16_t size)){
     hci_transport_h4_packet_handler = handler;
+}
+
+void hci_transport_h4_set_resync_callback(void (*callback)(void)){
+    hci_transport_h4_resync_callback = callback;
 }
 
 static void dummy_handler(uint8_t packet_type, uint8_t *packet, uint16_t size){

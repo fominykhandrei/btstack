@@ -66,6 +66,12 @@ const hci_transport_t * hci_transport_h4_instance_for_uart(const btstack_uart_t 
  */
 const hci_transport_t * hci_transport_h4_instance(const btstack_uart_block_t * uart_driver);
 
+/*
+ * @brief Set callback invoked when the H4 receiver resynchronizes after a desync.
+ * @param callback or NULL to disable
+ */
+void hci_transport_h4_set_resync_callback(void (*callback)(void));
+
 /* API_END */
 
 #if defined __cplusplus
